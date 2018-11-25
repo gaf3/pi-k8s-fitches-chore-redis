@@ -4,7 +4,7 @@ import fnmatch
 
 import json
 
-import pi_k8s_fitches_chore_redis
+import chore_redis
 
 class MockRedis(object):
 
@@ -44,16 +44,13 @@ class TestChoreRedis(unittest.TestCase):
     @mock.patch("redis.StrictRedis", MockRedis)
     def setUp(self):
 
-        self.chore_redis = pi_k8s_fitches_chore_redis.ChoreRedis("data.com", 667, "stuff")
+        self.chore_redis = chore_redis.ChoreRedis("data.com", 667, "stuff")
 
-    @mock.patch("redis.StrictRedis", MockRedis)
     def test___init___(self):
 
-        chore_redis = pi_k8s_fitches_chore_redis.ChoreRedis("data.com", 667, "stuff")
-
-        self.assertEqual(chore_redis.redis.host, "data.com")
-        self.assertEqual(chore_redis.redis.port, 667)
-        self.assertEqual(chore_redis.channel, "stuff")
+        self.assertEqual(self.chore_redis.redis.host, "data.com")
+        self.assertEqual(self.chore_redis.redis.port, 667)
+        self.assertEqual(self.chore_redis.channel, "stuff")
 
     def test_set(self):
 
@@ -85,7 +82,7 @@ class TestChoreRedis(unittest.TestCase):
 
         self.assertIsNone(self.chore_redis.get("dump"))
 
-    @mock.patch("pi_k8s_fitches_chore_redis.time.time")
+    @mock.patch("chore_redis.time.time")
     def test_speak(self, mock_time):
 
         mock_time.return_value = 7
@@ -150,7 +147,7 @@ class TestChoreRedis(unittest.TestCase):
             }
         ])
 
-    @mock.patch("pi_k8s_fitches_chore_redis.time.time")
+    @mock.patch("chore_redis.time.time")
     def test_check(self, mock_time):
 
         mock_time.return_value = 7
@@ -247,7 +244,7 @@ class TestChoreRedis(unittest.TestCase):
             "language": "en"
         })
 
-    @mock.patch("pi_k8s_fitches_chore_redis.time.time")
+    @mock.patch("chore_redis.time.time")
     def test_create(self, mock_time):
 
         mock_time.return_value = 7
@@ -298,7 +295,7 @@ class TestChoreRedis(unittest.TestCase):
             "language": "en"
         })
 
-    @mock.patch("pi_k8s_fitches_chore_redis.time.time")
+    @mock.patch("chore_redis.time.time")
     def test_remind(self, mock_time):
 
         mock_time.return_value = 7
@@ -382,7 +379,7 @@ class TestChoreRedis(unittest.TestCase):
         self.assertEqual(len(self.chore_redis.redis.messages), 1)
 
 
-    @mock.patch("pi_k8s_fitches_chore_redis.time.time")
+    @mock.patch("chore_redis.time.time")
     def test_next(self, mock_time):
 
         mock_time.return_value = 7
@@ -519,7 +516,7 @@ class TestChoreRedis(unittest.TestCase):
         })
         self.assertEqual(len(self.chore_redis.redis.messages), 4)
 
-    @mock.patch("pi_k8s_fitches_chore_redis.time.time")
+    @mock.patch("chore_redis.time.time")
     def test_complete(self, mock_time):
 
         mock_time.return_value = 7
@@ -642,7 +639,7 @@ class TestChoreRedis(unittest.TestCase):
         })
         self.assertEqual(len(self.chore_redis.redis.messages), 3)
 
-    @mock.patch("pi_k8s_fitches_chore_redis.time.time")
+    @mock.patch("chore_redis.time.time")
     def test_incomplete(self, mock_time):
 
         mock_time.return_value = 7

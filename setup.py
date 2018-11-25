@@ -1,18 +1,12 @@
 #!/usr/bin/env python
 
-from distutils.core import setup
-import os
-
+from setuptools import setup, find_packages
 setup(
-    name='pi_k8s_fitches_chore_redis',
-    version="0.0.1",
-    description="Library for interfacing with chores in Redis",
-    package_dir = {'': 'lib'},
-    long_description="Library for interfacing with chores in Redis",
-    author="Gaffer Fitch",
-    author_email="gaffer.fitch@gmail.com",
-    classifiers=[
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6'
+    name="pi_k8s_fitches.chore_redis",
+    version="0.1",
+    packages=["pi_k8s_fitches"],
+    package_dir={'pi_k8s_fitches':'lib'},
+    install_requires=[
+        "redis==2.10.6"
     ]
 )
