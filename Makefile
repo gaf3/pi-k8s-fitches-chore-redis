@@ -13,4 +13,4 @@ shell:
 	docker run --privileged -it $(VOLUMES) $(ACCOUNT)/$(IMAGE):$(VERSION) sh
 
 test:
-	docker run --privileged -it $(VOLUMES) $(ACCOUNT)/$(IMAGE):$(VERSION) sh -c "coverage run -m unittest discover -v test && coverage report -m --include lib/*.py"
+	docker run --privileged -it $(VOLUMES) $(ACCOUNT)/$(IMAGE):$(VERSION) sh -c "coverage run -m unittest discover -v test && coverage report -m"

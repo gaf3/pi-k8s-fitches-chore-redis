@@ -75,10 +75,7 @@ class ChoreRedis(object):
             if len(pieces) == 4 and pieces[1] == "node" and pieces[3] == "chore":
                 chore = self.get(pieces[2])
 
-                # If the chore isn't completed, add to the list
-
-                if "completed" not in chore:
-                    chores.append(self.get(pieces[2]))
+                chores.append(self.get(pieces[2]))
 
         return chores
 

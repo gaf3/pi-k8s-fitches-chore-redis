@@ -120,14 +120,6 @@ class TestChoreRedis(unittest.TestCase):
             "language": "en"
         })
 
-        self.chore_redis.set({
-            "node": "jump",
-            "name": "kid",
-            "text": "things",
-            "language": "en",
-            "completed": 0
-        })
-
         self.chore_redis.redis.set("blurp", 0)
         self.chore_redis.redis.set("/node/bump/jump/chore", 0)
         self.chore_redis.redis.set("/node/stump/chore/2018-11-25T12:34:56", 0)
