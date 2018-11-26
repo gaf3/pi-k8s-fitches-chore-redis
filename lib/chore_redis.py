@@ -73,8 +73,6 @@ class ChoreRedis(object):
             # If we're sure there's nothing hinky, get the actual chore
 
             if len(pieces) == 4 and pieces[1] == "node" and pieces[3] == "chore":
-                chore = self.get(pieces[2])
-
                 chores.append(self.get(pieces[2]))
 
         return chores
