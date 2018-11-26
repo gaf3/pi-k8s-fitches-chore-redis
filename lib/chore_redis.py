@@ -137,6 +137,8 @@ class ChoreRedis(object):
         self.check(chore)
         self.set(chore)
 
+        return chore
+
     def remind(self, chore):
         """
         Sees if any reminders need to go out

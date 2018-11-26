@@ -254,7 +254,24 @@ class TestChoreRedis(unittest.TestCase):
             ]
         }
 
-        self.chore_redis.create(template, "kid", "bump")
+        self.assertEqual(self.chore_redis.create(template, "kid", "bump"), {
+            "name": "kid",
+            "node": "bump",
+            "text": "get ready",
+            "language": "en",
+            "started": 7,
+            "notified": 7,
+            "tasks": [
+                {
+                    "text": "wake up",
+                    "started": 7,
+                    "notified": 7
+                },
+                {
+                    "text": "get dressed"
+                }
+            ]
+        })
 
         self.assertEqual(self.chore_redis.get("bump"), {
             "name": "kid",
