@@ -68,7 +68,7 @@ class ChoreRedis(object):
         # Get all the keys in Redis matching our storage pattern
 
         for key in self.redis.keys('/node/*/chore'):
-            pieces = key.split('/')
+            pieces = key.decode("utf-8").split('/')
 
             # If we're sure there's nothing hinky, get the actual chore
 

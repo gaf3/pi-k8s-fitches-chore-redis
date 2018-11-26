@@ -37,7 +37,7 @@ class MockRedis(object):
 
         for key in sorted(self.data.keys()):
             if fnmatch.fnmatch(key, pattern):
-                yield key
+                yield key.encode('utf-8')
 
 class TestChoreRedis(unittest.TestCase):
 
