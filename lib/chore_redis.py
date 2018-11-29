@@ -21,21 +21,21 @@ class ChoreRedis(object):
 
     def set(self, chore):
         """
-        Sets a chore for Redis
+        Sets a chore in Redis
         """
 
         # Just set using the node and dumped data
 
-        self.redis.set(f"/node/{chore['node']}/chore", json.dumps(chore))
+        self.redis.set(f"/chore/{chore['id']}", json.dumps(chore))
 
-    def get(self, node):
+    def get(self, id):
         """
-        Get chore for a node
+        Get chore from Redis
         """
 
         # Get the data and if it's there, parse and return.
 
-        chore = self.redis.get(f"/node/{node}/chore")
+        chore = self.redis.get(f"/chore/{id}")
 
         if chore:
             return json.loads(chore)
@@ -54,7 +54,7 @@ class ChoreRedis(object):
         self.redis.publish(self.channel, json.dumps({
             "timestamp": time.time(),
             "node": chore["node"],
-            "text": f"{chore['name']}, {text}",
+            "text": f"{chore['person']}, {text}",
             "language": chore["language"]
         }))
 
@@ -67,12 +67,12 @@ class ChoreRedis(object):
 
         # Get all the keys in Redis matching our storage pattern
 
-        for key in self.redis.keys('/node/*/chore'):
+        for key in self.redis.keys('/chore/*'):
             pieces = key.decode("utf-8").split('/')
 
             # If we're sure there's nothing hinky, get the actual chore
 
-            if len(pieces) == 4 and pieces[1] == "node" and pieces[3] == "chore":
+            if len(pieces) == 3 and pieces[1] == "chore":
                 chores.append(self.get(pieces[2]))
 
         return chores
@@ -110,7 +110,7 @@ class ChoreRedis(object):
         chore["notified"] = chore["completed"] 
         self.speak(chore, f"thank you. You did {chore['text']}")
 
-    def create(self, template, name, node):
+    def create(self, template, person, node):
         """
         Creates a chore from a template
         """
@@ -119,9 +119,13 @@ class ChoreRedis(object):
 
         chore = copy.deepcopy(template)
         chore.update({
-            "name": name,
+            "id": node,
+            "person": person,
             "node": node
         })
+        for index, task in enumerate(chore["tasks"]):
+            if "id" not in task:
+                task["id"] = index
 
         # We've started the overall chore.  Notify the person
         # record that we did so.
@@ -193,24 +197,26 @@ class ChoreRedis(object):
 
         return False
 
-    def complete(self, chore, index):
+    def complete(self, chore, id):
         """
         Completes a specific task
         """
 
+        task = chore["tasks"][id]
+
         # Complete if it isn't. 
 
-        if "completed" not in chore["tasks"][index]:
+        if "completed" not in task:
 
-            chore["tasks"][index]["completed"] = time.time()
+            task["completed"] = time.time()
 
             # If it hasn't been started, do so now
 
-            if "started" not in chore["tasks"][index]:
-                chore["tasks"][index]["started"] = chore["tasks"][index]["completed"]
+            if "started" not in task:
+                task["started"] = task["completed"]
 
-            chore["tasks"][index]["notified"] = chore["tasks"][index]["completed"]
-            self.speak(chore, f"you did {chore['tasks'][index]['text']}")
+            task["notified"] = task["completed"]
+            self.speak(chore, f"you did {task['text']}")
 
             # See if there's a next one, save our changes
 
@@ -221,19 +227,21 @@ class ChoreRedis(object):
 
         return False
 
-    def incomplete(self, chore, index):
+    def incomplete(self, chore, id):
         """
         Undoes a specific task
         """
+
+        task = chore["tasks"][id]
 
         # Delete completed from the task.  This'll leave the current task started.
         # It's either that or restart it.  This action is done if a kid said they
         # were done when they weren't.  So an extra penality is fine. 
 
-        if "completed" in chore["tasks"][index]:
-            del chore["tasks"][index]["completed"]
-            chore["tasks"][index]["notified"] = time.time()
-            self.speak(chore, f"I'm sorry but you did not {chore['tasks'][index]['text']} yet")
+        if "completed" in task:
+            del task["completed"]
+            task["notified"] = time.time()
+            self.speak(chore, f"I'm sorry but you did not {task['text']} yet")
 
             # And incomplete the overall chore too if needed
 
