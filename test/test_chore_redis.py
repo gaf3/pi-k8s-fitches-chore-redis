@@ -41,6 +41,8 @@ class MockRedis(object):
 
 class TestChoreRedis(unittest.TestCase):
 
+    maxDiff = None
+
     @mock.patch("redis.StrictRedis", MockRedis)
     def setUp(self):
 
@@ -160,7 +162,7 @@ class TestChoreRedis(unittest.TestCase):
             "tasks": [
                 {
                     "id": 0,
-                    "started": 0
+                    "start": 0
                 },
                 {
                     "id": 1,
@@ -180,7 +182,7 @@ class TestChoreRedis(unittest.TestCase):
             "tasks": [
                 {
                     "id": 0,
-                    "started": 0
+                    "start": 0
                 },
                 {
                     "id": 1,
@@ -189,7 +191,7 @@ class TestChoreRedis(unittest.TestCase):
             ]
         })
 
-        chore["tasks"][0]["completed"] = 0
+        chore["tasks"][0]["end"] = 0
 
         self.chore_redis.check(chore)
 
@@ -202,13 +204,13 @@ class TestChoreRedis(unittest.TestCase):
             "tasks": [
                 {
                     "id": 0,
-                    "started": 0,
-                    "completed": 0
+                    "start": 0,
+                    "end": 0
                 },
                 {
                     "id": 1,
                     "text": "do it",
-                    "started": 7,
+                    "start": 7,
                     "notified": 7
                 }
             ]
@@ -220,7 +222,7 @@ class TestChoreRedis(unittest.TestCase):
             "language": "en"
         })
 
-        chore["tasks"][1]["completed"] = 0
+        chore["tasks"][1]["end"] = 0
 
         self.chore_redis.check(chore)
 
@@ -231,19 +233,19 @@ class TestChoreRedis(unittest.TestCase):
             "text": "things",
             "language": "en",
             "notified": 7,
-            "completed": 7,
+            "end": 7,
             "tasks": [
                 {
                     "id": 0,   
-                    "started": 0,
-                    "completed": 0
+                    "start": 0,
+                    "end": 0
                 },
                 {
                     "id": 1,   
                     "text": "do it",
-                    "started": 7,
+                    "start": 7,
                     "notified": 7,
-                    "completed": 0
+                    "end": 0
                 }
             ]
         })
@@ -279,13 +281,13 @@ class TestChoreRedis(unittest.TestCase):
             "node": "bump",
             "text": "get ready",
             "language": "en",
-            "started": 7,
+            "start": 7,
             "notified": 7,
             "tasks": [
                 {
                     "id": 0,   
                     "text": "wake up",
-                    "started": 7,
+                    "start": 7,
                     "notified": 7
                 },
                 {
@@ -301,13 +303,13 @@ class TestChoreRedis(unittest.TestCase):
             "node": "bump",
             "text": "get ready",
             "language": "en",
-            "started": 7,
+            "start": 7,
             "notified": 7,
             "tasks": [
                 {
                     "id": 0,   
                     "text": "wake up",
-                    "started": 7,
+                    "start": 7,
                     "notified": 7
                 },
                 {
@@ -332,7 +334,7 @@ class TestChoreRedis(unittest.TestCase):
     @mock.patch("chore_redis.time.time")
     def test_remind(self, mock_time):
 
-        mock_time.return_value = 7
+        mock_time.return_value = 2
 
         chore = {
             "id": "bump",
@@ -340,6 +342,9 @@ class TestChoreRedis(unittest.TestCase):
             "person": "kid",
             "text": "people",
             "language": "en",
+            "delay": 3,
+            "notified": 0,
+            "start": 0,
             "tasks": [
                 {
                     "id": 0,   
@@ -350,27 +355,36 @@ class TestChoreRedis(unittest.TestCase):
                 {
                     "id": 1,   
                     "text": "done it",
-                    "started": 0,
-                    "completed": 0,
+                    "start": 0,
+                    "end": 0,
                     "notified": 0,
                     "interval": 5
                 },
                 {
                     "id": 2,   
                     "text": "do it",
-                    "started": 0,
+                    "start": 0,
+                    "paused": True,
                     "notified": 0,
+                    "delay": 3,
                     "interval": 5
                 },
                 {
                     "id": 3,   
                     "text": "not yet",
-                    "started": 0,
                     "notified": 0,
                     "interval": 5
                 }
             ]
         }
+
+        self.assertFalse(self.chore_redis.remind(chore))
+
+        mock_time.return_value = 7
+
+        self.assertFalse(self.chore_redis.remind(chore))
+
+        chore["tasks"][2]["paused"] = False
 
         self.assertTrue(self.chore_redis.remind(chore))
 
@@ -380,6 +394,9 @@ class TestChoreRedis(unittest.TestCase):
             "person": "kid",
             "text": "people",
             "language": "en",
+            "delay": 3,
+            "notified": 0,
+            "start": 0,
             "tasks": [
                 {
                     "id": 0,   
@@ -390,28 +407,30 @@ class TestChoreRedis(unittest.TestCase):
                 {
                     "id": 1,   
                     "text": "done it",
-                    "started": 0,
-                    "completed": 0,
+                    "start": 0,
+                    "end": 0,
                     "notified": 0,
                     "interval": 5
                 },
                 {
                     "id": 2,   
                     "text": "do it",
-                    "started": 0,
+                    "start": 0,
+                    "delay": 3,
+                    "paused": False,
                     "notified": 7,
                     "interval": 5
                 },
                 {
                     "id": 3,   
                     "text": "not yet",
-                    "started": 0,
                     "notified": 0,
                     "interval": 5
                 }
             ]
         })
         self.assertEqual(len(self.chore_redis.redis.messages), 1)
+
         self.assertEqual(json.loads(self.chore_redis.redis.messages[0]), {
             "timestamp": 7,
             "node": "bump",
@@ -438,13 +457,13 @@ class TestChoreRedis(unittest.TestCase):
                 {
                     "id": 0,   
                     "text": "done it",
-                    "started": 0,
-                    "completed": 0
+                    "start": 0,
+                    "end": 0
                 },
                 {
                     "id": 1,   
                     "text": "do it",
-                    "started": 0
+                    "start": 0
                 },
                 {
                     "id": 2,   
@@ -464,20 +483,20 @@ class TestChoreRedis(unittest.TestCase):
                 {
                     "id": 0,   
                     "text": "done it",
-                    "started": 0,
-                    "completed": 0
+                    "start": 0,
+                    "end": 0
                 },
                 {
                     "id": 1,   
                     "text": "do it",
-                    "started": 0,
+                    "start": 0,
                     "notified": 7,
-                    "completed": 7
+                    "end": 7
                 },
                 {
                     "id": 2,   
                     "text": "next it",
-                    "started": 7,
+                    "start": 7,
                     "notified": 7
                 }
             ]
@@ -504,27 +523,27 @@ class TestChoreRedis(unittest.TestCase):
             "text": "stuff",
             "language": "en",
             "notified": 7,
-            "completed": 7,
+            "end": 7,
             "tasks": [
                 {
                     "id": 0,   
                     "text": "done it",
-                    "started": 0,
-                    "completed": 0
+                    "start": 0,
+                    "end": 0
                 },
                 {
                     "id": 1,   
                     "text": "do it",
-                    "started": 0,
+                    "start": 0,
                     "notified": 7,
-                    "completed": 7
+                    "end": 7
                 },
                 {
                     "id": 2,   
                     "text": "next it",
-                    "started": 7,
+                    "start": 7,
                     "notified": 7,
-                    "completed": 7
+                    "end": 7
                 }
             ]
         })
@@ -550,31 +569,339 @@ class TestChoreRedis(unittest.TestCase):
             "text": "stuff",
             "language": "en",
             "notified": 7,
-            "completed": 7,
+            "end": 7,
             "tasks": [
                 {
                     "id": 0,   
                     "text": "done it",
-                    "started": 0,
-                    "completed": 0
+                    "start": 0,
+                    "end": 0
                 },
                 {
                     "id": 1,   
                     "text": "do it",
-                    "started": 0,
+                    "start": 0,
                     "notified": 7,
-                    "completed": 7
+                    "end": 7
                 },
                 {
                     "id": 2,   
                     "text": "next it",
-                    "started": 7,
+                    "start": 7,
                     "notified": 7,
-                    "completed": 7
+                    "end": 7
                 }
             ]
         })
         self.assertEqual(len(self.chore_redis.redis.messages), 4)
+
+    @mock.patch("chore_redis.time.time")
+    def test_pause(self, mock_time):
+
+        mock_time.return_value = 7
+
+        chore = {
+            "id": "bump",
+            "node": "bump",
+            "person": "kid",
+            "text": "stuff",
+            "language": "en",
+            "tasks": [
+                {
+                    "id": 0,   
+                    "start": 0,
+                    "text": "people"
+                },
+                {
+                    "id": 1,   
+                    "text": "stuff"
+                },
+                {
+                    "id": 2,   
+                    "text": "things"
+                }
+            ]
+        }
+
+        self.assertTrue(self.chore_redis.pause(chore, 0))
+        self.assertEqual(self.chore_redis.get("bump"), {
+            "id": "bump",
+            "node": "bump",
+            "person": "kid",
+            "text": "stuff",
+            "language": "en",
+            "tasks": [
+                {
+                    "id": 0,
+                    "start": 0,
+                    "paused": True,
+                    "notified": 7,
+                    "text": "people"
+                },
+                {
+                    "id": 1,   
+                    "text": "stuff"
+                },
+                {
+                    "id": 2,   
+                    "text": "things"
+                }
+            ]
+        })
+        self.assertEqual(len(self.chore_redis.redis.messages), 1)
+        self.assertEqual(json.loads(self.chore_redis.redis.messages[0]), {
+            "timestamp": 7,
+            "node": "bump",
+            "text": "kid, you do not have to people yet",
+            "language": "en"
+        })
+
+        self.assertFalse(self.chore_redis.pause(chore, 0))
+        self.assertEqual(self.chore_redis.get("bump"), {
+            "id": "bump",
+            "node": "bump",
+            "person": "kid",
+            "text": "stuff",
+            "language": "en",
+            "tasks": [
+                {
+                    "id": 0,
+                    "start": 0,
+                    "paused": True,
+                    "notified": 7,
+                    "text": "people"
+                },
+                {
+                    "id": 1,   
+                    "text": "stuff"
+                },
+                {
+                    "id": 2,   
+                    "text": "things"
+                }
+            ]
+        })
+        self.assertEqual(len(self.chore_redis.redis.messages), 1)
+
+    @mock.patch("chore_redis.time.time")
+    def test_unpause(self, mock_time):
+
+        mock_time.return_value = 7
+
+        chore = {
+            "id": "bump",
+            "node": "bump",
+            "person": "kid",
+            "text": "stuff",
+            "language": "en",
+            "tasks": [
+                {
+                    "id": 0,   
+                    "start": 0,
+                    "paused": True,
+                    "text": "people"
+                },
+                {
+                    "id": 1,   
+                    "text": "stuff"
+                },
+                {
+                    "id": 2,   
+                    "text": "things"
+                }
+            ]
+        }
+
+        self.assertTrue(self.chore_redis.unpause(chore, 0))
+        self.assertEqual(self.chore_redis.get("bump"), {
+            "id": "bump",
+            "node": "bump",
+            "person": "kid",
+            "text": "stuff",
+            "language": "en",
+            "tasks": [
+                {
+                    "id": 0,
+                    "start": 0,
+                    "paused": False,
+                    "notified": 7,
+                    "text": "people"
+                },
+                {
+                    "id": 1,   
+                    "text": "stuff"
+                },
+                {
+                    "id": 2,   
+                    "text": "things"
+                }
+            ]
+        })
+        self.assertEqual(len(self.chore_redis.redis.messages), 1)
+        self.assertEqual(json.loads(self.chore_redis.redis.messages[0]), {
+            "timestamp": 7,
+            "node": "bump",
+            "text": "kid, you do have to people now",
+            "language": "en"
+        })
+
+        self.assertFalse(self.chore_redis.unpause(chore, 0))
+        self.assertEqual(self.chore_redis.get("bump"), {
+            "id": "bump",
+            "node": "bump",
+            "person": "kid",
+            "text": "stuff",
+            "language": "en",
+            "tasks": [
+                {
+                    "id": 0,
+                    "start": 0,
+                    "paused": False,
+                    "notified": 7,
+                    "text": "people"
+                },
+                {
+                    "id": 1,   
+                    "text": "stuff"
+                },
+                {
+                    "id": 2,   
+                    "text": "things"
+                }
+            ]
+        })
+        self.assertEqual(len(self.chore_redis.redis.messages), 1)
+
+    @mock.patch("chore_redis.time.time")
+    def test_skip(self, mock_time):
+
+        mock_time.return_value = 7
+
+        chore = {
+            "id": "bump",
+            "node": "bump",
+            "person": "kid",
+            "text": "stuff",
+            "language": "en",
+            "tasks": [
+                {
+                    "id": 0,   
+                    "text": "people"
+                },
+                {
+                    "id": 1,   
+                    "text": "stuff"
+                },
+                {
+                    "id": 2,   
+                    "text": "things"
+                }
+            ]
+        }
+
+        self.assertTrue(self.chore_redis.skip(chore, 0))
+        self.assertEqual(self.chore_redis.get("bump"), {
+            "id": "bump",
+            "node": "bump",
+            "person": "kid",
+            "text": "stuff",
+            "language": "en",
+            "tasks": [
+                {
+                    "id": 0,
+                    "start": 7,
+                    "skipped": True,
+                    "notified": 7,
+                    "end": 7,
+                    "text": "people"
+                },
+                {
+                    "id": 1,
+                    "start": 7,
+                    "notified": 7,
+                    "text": "stuff"
+                },
+                {
+                    "id": 2,   
+                    "text": "things"
+                }
+            ]
+        })
+        self.assertEqual(len(self.chore_redis.redis.messages), 2)
+        self.assertEqual(json.loads(self.chore_redis.redis.messages[0]), {
+            "timestamp": 7,
+            "node": "bump",
+            "text": "kid, you do not have to people",
+            "language": "en"
+        })
+        self.assertEqual(json.loads(self.chore_redis.redis.messages[1]), {
+            "timestamp": 7,
+            "node": "bump",
+            "text": "kid, please stuff",
+            "language": "en"
+        })
+
+        self.assertFalse(self.chore_redis.skip(chore, 0))
+        self.assertEqual(len(self.chore_redis.redis.messages), 2)
+
+    @mock.patch("chore_redis.time.time")
+    def test_unskip(self, mock_time):
+
+        mock_time.return_value = 7
+
+        chore = {
+            "id": "bump",
+            "node": "bump",
+            "person": "kid",
+            "text": "stuff",
+            "language": "en",
+            "end": 0,
+            "tasks": [
+                {
+                    "id": 0,
+                    "start": 7,
+                    "skipped": True,
+                    "notified": 7,
+                    "end": 7,
+                    "text": "people"
+                }
+            ]
+        }
+
+        self.assertTrue(self.chore_redis.unskip(chore, 0))
+        self.assertEqual(self.chore_redis.get("bump"), {
+            "id": "bump",
+            "node": "bump",
+            "person": "kid",
+            "text": "stuff",
+            "language": "en",
+            "notified": 7,
+            "tasks": [
+                {
+                    "id": 0,
+                    "start": 7,
+                    "skipped": False,
+                    "notified": 7,
+                    "text": "people"
+                }
+            ]
+        })
+        self.assertEqual(len(self.chore_redis.redis.messages), 2)
+        self.assertEqual(json.loads(self.chore_redis.redis.messages[0]), {
+            "timestamp": 7,
+            "node": "bump",
+            "text": "kid, you do have to people",
+            "language": "en"
+        })
+        self.assertEqual(json.loads(self.chore_redis.redis.messages[1]), {
+            "timestamp": 7,
+            "node": "bump",
+            "text": "kid, I'm sorry but you did not stuff yet",
+            "language": "en"
+        })
+
+        self.assertFalse(self.chore_redis.unskip(chore, 0))
+        self.assertEqual(len(self.chore_redis.redis.messages), 2)
 
     @mock.patch("chore_redis.time.time")
     def test_complete(self, mock_time):
@@ -590,7 +917,7 @@ class TestChoreRedis(unittest.TestCase):
             "tasks": [
                 {
                     "id": 0,   
-                    "started": 0,
+                    "start": 0,
                     "text": "people"
                 },
                 {
@@ -614,14 +941,14 @@ class TestChoreRedis(unittest.TestCase):
             "tasks": [
                 {
                     "id": 0,   
-                    "started": 0,
+                    "start": 0,
                     "notified": 7,
-                    "completed": 7,
+                    "end": 7,
                     "text": "people"
                 },
                 {
                     "id": 1,   
-                    "started": 7,
+                    "start": 7,
                     "notified": 7,
                     "text": "stuff"
                 },
@@ -655,22 +982,22 @@ class TestChoreRedis(unittest.TestCase):
             "tasks": [
                 {
                     "id": 0,   
-                    "started": 0,
+                    "start": 0,
                     "notified": 7,
-                    "completed": 7,
+                    "end": 7,
                     "text": "people"
                 },
                 {
                     "id": 1,   
-                    "started": 7,
+                    "start": 7,
                     "notified": 7,
                     "text": "stuff"
                 },
                 {
                     "id": 2,   
-                    "started": 7,
+                    "start": 7,
                     "notified": 7,
-                    "completed": 7,
+                    "end": 7,
                     "text": "things"
                 }
             ]
@@ -693,22 +1020,22 @@ class TestChoreRedis(unittest.TestCase):
             "tasks": [
                 {
                     "id": 0,   
-                    "started": 0,
+                    "start": 0,
                     "notified": 7,
-                    "completed": 7,
+                    "end": 7,
                     "text": "people"
                 },
                 {
                     "id": 1,   
-                    "started": 7,
+                    "start": 7,
                     "notified": 7,
                     "text": "stuff"
                 },
                 {
                     "id": 2,   
-                    "started": 7,
+                    "start": 7,
                     "notified": 7,
-                    "completed": 7,
+                    "end": 7,
                     "text": "things"
                 }
             ]
@@ -726,26 +1053,26 @@ class TestChoreRedis(unittest.TestCase):
             "person": "kid",
             "text": "stuff",
             "language": "en",
-            "completed": 7,
+            "end": 7,
             "tasks": [
                 {
                     "id": 0,   
-                    "started": 0,
+                    "start": 0,
                     "notified": 7,
-                    "completed": 7,
+                    "end": 7,
                     "text": "people"
                 },
                 {
                     "id": 1,   
-                    "started": 7,
+                    "start": 7,
                     "notified": 7,
                     "text": "stuff"
                 },
                 {
                     "id": 2,   
-                    "started": 7,
+                    "start": 7,
                     "notified": 7,
-                    "completed": 7,
+                    "end": 7,
                     "text": "things"
                 }
             ]
@@ -758,23 +1085,24 @@ class TestChoreRedis(unittest.TestCase):
             "person": "kid",
             "text": "stuff",
             "language": "en",
+            "notified": 7,
             "tasks": [
                 {
                     "id": 0,   
-                    "started": 0,
+                    "start": 0,
                     "notified": 7,
-                    "completed": 7,
+                    "end": 7,
                     "text": "people"
                 },
                 {
                     "id": 1,   
-                    "started": 7,
+                    "start": 7,
                     "notified": 7,
                     "text": "stuff"
                 },
                 {
                     "id": 2,   
-                    "started": 7,
+                    "start": 7,
                     "notified": 7,
                     "text": "things"
                 }
@@ -801,23 +1129,24 @@ class TestChoreRedis(unittest.TestCase):
             "person": "kid",
             "text": "stuff",
             "language": "en",
+            "notified": 7,
             "tasks": [
                 {
                     "id": 0,   
-                    "started": 0,
+                    "start": 0,
                     "notified": 7,
-                    "completed": 7,
+                    "end": 7,
                     "text": "people"
                 },
                 {
                     "id": 1,   
-                    "started": 7,
+                    "start": 7,
                     "notified": 7,
                     "text": "stuff"
                 },
                 {
                     "id": 2,   
-                    "started": 7,
+                    "start": 7,
                     "notified": 7,
                     "text": "things"
                 }

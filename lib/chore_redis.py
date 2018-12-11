@@ -87,27 +87,27 @@ class ChoreRedis(object):
 
         for task in chore["tasks"]:
 
-            # If there's one that's started and not completed, we're good
+            # If there's one that's start and not completed, we're good
 
-            if "started" in task and "completed" not in task:
+            if "start" in task and "end" not in task:
                 return
 
         # Go through the tasks again now that we know none are in progress
 
         for task in chore["tasks"]:
 
-            # If not started, start it, and let 'em know
+            # If not start, start it, and let 'em know
 
-            if "started" not in task:
-                task["started"] = time.time()
-                task["notified"] = task["started"]
+            if "start" not in task:
+                task["start"] = time.time()
+                task["notified"] = task["start"]
                 self.speak(chore, f"please {task['text']}")
                 return
 
         # If we're here, all are done, so complete the chore
 
-        chore["completed"] = time.time()
-        chore["notified"] = chore["completed"] 
+        chore["end"] = time.time()
+        chore["notified"] = chore["end"] 
         self.speak(chore, f"thank you. You did {chore['text']}")
 
     def create(self, template, person, node):
@@ -127,11 +127,11 @@ class ChoreRedis(object):
             if "id" not in task:
                 task["id"] = index
 
-        # We've started the overall chore.  Notify the person
+        # We've start the overall chore.  Notify the person
         # record that we did so.
 
-        chore["started"] = time.time()
-        chore["notified"] = chore["started"] 
+        chore["start"] = time.time()
+        chore["notified"] = chore["start"] 
         self.speak(chore, f"time to {chore['text']}")
 
         # Check for the first tasks and set our changes. 
@@ -146,14 +146,24 @@ class ChoreRedis(object):
         Sees if any reminders need to go out
         """
 
-        # Go through all the tasks
+        # Go through all the tasks to find the current one
 
         for task in chore["tasks"]:
 
             # If this is the first active task
 
-            if "started" in task and "completed" not in task:
+            if "start" in task and "end" not in task:
                 
+                # If it has a delay and isn't time yet, don't bother yet
+
+                if "delay" in task and task["delay"] + task["start"] > time.time():
+                    return False
+
+                # If it's paused, don't bother either
+
+                if "paused" in task and task["paused"]:
+                    return False
+
                 # If it has an interval and it's more been more than that since the last notification
 
                 if "interval" in task and time.time() > task["notified"] + task["interval"]:
@@ -183,9 +193,9 @@ class ChoreRedis(object):
         # that's ongoing and break
 
         for task in chore["tasks"]:
-            if "started" in task and "completed" not in task:
-                task["completed"] = time.time()
-                task["notified"] = task["completed"]
+            if "start" in task and "end" not in task:
+                task["end"] = time.time()
+                task["notified"] = task["end"]
                 self.speak(chore, f"you did {task['text']}")
 
                 # Check to see if there's another one and set
@@ -194,6 +204,117 @@ class ChoreRedis(object):
                 self.set(chore)
 
                 return True
+
+        return False
+
+    def pause(self, chore, id):
+        """
+        Pauses a specific task
+        """
+
+        task = chore["tasks"][id]
+
+        # Pause if it isn't. 
+
+        if "paused" not in task or not task["paused"]:
+
+            task["paused"] = True
+            task["notified"] = time.time()
+            self.speak(chore, f"you do not have to {task['text']} yet")
+
+            # Set it
+
+            self.set(chore)
+
+            return True
+
+        return False
+
+    def unpause(self, chore, id):
+        """
+        Resumes a specific task
+        """
+
+        task = chore["tasks"][id]
+
+        # Resume if it's paused
+
+        if "paused" in task and task["paused"]:
+
+            task["paused"] = False
+            task["notified"] = time.time()
+            self.speak(chore, f"you do have to {task['text']} now")
+
+            # Set it
+
+            self.set(chore)
+
+            return True
+
+        return False
+
+    def skip(self, chore, id):
+        """
+        Skips a specific task
+        """
+
+        task = chore["tasks"][id]
+
+        # Pause if it isn't. 
+
+        if "skipped" not in task or not task["skipped"]:
+
+            task["skipped"] = True
+
+            task["end"] = time.time()
+
+            # If it hasn't been started, do so now
+
+            if "start" not in task:
+                task["start"] = task["end"]
+                
+            task["notified"] = time.time()
+            self.speak(chore, f"you do not have to {task['text']}")
+
+            # Check to see if there's another one and set
+
+            self.check(chore)
+            self.set(chore)
+
+            return True
+
+        return False
+
+    def unskip(self, chore, id):
+        """
+        Unskips specific task
+        """
+
+        task = chore["tasks"][id]
+
+        # Pause if it isn't. 
+
+        if "skipped" in task and task["skipped"]:
+
+            task["skipped"] = False
+
+            del task["end"]
+                
+            task["notified"] = time.time()
+            self.speak(chore, f"you do have to {task['text']}")
+
+            # And incomplete the overall chore too if needed
+
+            if "end" in chore:
+                del chore["end"]
+                chore["notified"] = time.time()
+                self.speak(chore, f"I'm sorry but you did not {chore['text']} yet")
+
+            # Check to see if there's another one and set
+
+            self.set(chore)
+
+            return True
 
         return False
 
@@ -206,16 +327,16 @@ class ChoreRedis(object):
 
         # Complete if it isn't. 
 
-        if "completed" not in task:
+        if "end" not in task:
 
-            task["completed"] = time.time()
+            task["end"] = time.time()
 
             # If it hasn't been started, do so now
 
-            if "started" not in task:
-                task["started"] = task["completed"]
+            if "start" not in task:
+                task["start"] = task["end"]
 
-            task["notified"] = task["completed"]
+            task["notified"] = task["end"]
             self.speak(chore, f"you did {task['text']}")
 
             # See if there's a next one, save our changes
@@ -238,15 +359,16 @@ class ChoreRedis(object):
         # It's either that or restart it.  This action is done if a kid said they
         # were done when they weren't.  So an extra penality is fine. 
 
-        if "completed" in task:
-            del task["completed"]
+        if "end" in task:
+            del task["end"]
             task["notified"] = time.time()
             self.speak(chore, f"I'm sorry but you did not {task['text']} yet")
 
             # And incomplete the overall chore too if needed
 
-            if "completed" in chore:
-                del chore["completed"]
+            if "end" in chore:
+                del chore["end"]
+                chore["notified"] = time.time()
                 self.speak(chore, f"I'm sorry but you did not {chore['text']} yet")
 
             # Don't check because we know one is started. But set out changes.
