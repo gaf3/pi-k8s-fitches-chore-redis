@@ -157,12 +157,12 @@ class ChoreRedis(object):
                 # If it has a delay and isn't time yet, don't bother yet
 
                 if "delay" in task and task["delay"] + task["start"] > time.time():
-                    continue
+                    return False
 
                 # If it's paused, don't bother either
 
                 if "paused" in task and task["paused"]:
-                    continue
+                    return False
 
                 # If it has an interval and it's more been more than that since the last notification
 
