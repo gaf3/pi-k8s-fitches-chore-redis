@@ -101,7 +101,11 @@ class ChoreRedis(object):
             if "start" not in task:
                 task["start"] = time.time()
                 task["notified"] = task["start"]
-                self.speak(chore, f"please {task['text']}")
+
+                if "paused" in task and task["paused"]:
+                    self.speak(chore, f"you do not have to {task['text']} yet")
+                else:
+                    self.speak(chore, f"please {task['text']}")
                 return
 
         # If we're here, all are done, so complete the chore

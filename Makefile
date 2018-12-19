@@ -1,5 +1,5 @@
 IMAGE=pi-k8s-fitches-chore-redis
-VERSION=0.3
+VERSION=0.4
 ACCOUNT=gaf3
 NAMESPACE=fitches
 VOLUMES=-v ${PWD}/lib/:/opt/pi-k8s/lib/ -v ${PWD}/test/:/opt/pi-k8s/test/ -v ${PWD}/setup.py:/opt/pi-k8s/setup.py
