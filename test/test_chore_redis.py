@@ -166,6 +166,11 @@ class TestChoreRedis(unittest.TestCase):
                 },
                 {
                     "id": 1,
+                    "text": "wait it",
+                    "paused": True
+                },
+                {
+                    "id": 2,
                     "text": "do it"
                 }
             ]
@@ -186,6 +191,11 @@ class TestChoreRedis(unittest.TestCase):
                 },
                 {
                     "id": 1,
+                    "text": "wait it",
+                    "paused": True
+                },
+                {
+                    "id": 2,
                     "text": "do it"
                 }
             ]
@@ -209,20 +219,64 @@ class TestChoreRedis(unittest.TestCase):
                 },
                 {
                     "id": 1,
-                    "text": "do it",
+                    "text": "wait it",
+                    "paused": True,
                     "start": 7,
                     "notified": 7
+                },
+                {
+                    "id": 2,
+                    "text": "do it"
                 }
             ]
         })
         self.assertEqual(json.loads(self.chore_redis.redis.messages[0]), {
             "timestamp": 7,
             "node": "bump",
-            "text": "kid, please do it",
+            "text": "kid, you do not have to wait it yet",
             "language": "en"
         })
 
         chore["tasks"][1]["end"] = 0
+
+        self.chore_redis.check(chore)
+
+        self.assertEqual(chore, {
+            "id": "bump",
+            "node": "bump",
+            "person": "kid",
+            "text": "things",
+            "language": "en",
+            "tasks": [
+                {
+                    "id": 0,
+                    "start": 0,
+                    "end": 0
+                },
+                {
+                    "id": 1,
+                    "text": "wait it",
+                    "paused": True,
+                    "start": 7,
+                    "notified": 7,
+                    "end": 0
+                },
+                {
+                    "id": 2,
+                    "text": "do it",
+                    "start": 7,
+                    "notified": 7
+                }
+            ]
+        })
+        self.assertEqual(json.loads(self.chore_redis.redis.messages[1]), {
+            "timestamp": 7,
+            "node": "bump",
+            "text": "kid, please do it",
+            "language": "en"
+        })
+
+        chore["tasks"][2]["end"] = 0
 
         self.chore_redis.check(chore)
 
@@ -241,7 +295,15 @@ class TestChoreRedis(unittest.TestCase):
                     "end": 0
                 },
                 {
-                    "id": 1,   
+                    "id": 1,
+                    "text": "wait it",
+                    "paused": True,
+                    "start": 7,
+                    "notified": 7,
+                    "end": 0
+                },
+                {
+                    "id": 2,   
                     "text": "do it",
                     "start": 7,
                     "notified": 7,
@@ -250,7 +312,7 @@ class TestChoreRedis(unittest.TestCase):
             ]
         })
 
-        self.assertEqual(json.loads(self.chore_redis.redis.messages[1]), {
+        self.assertEqual(json.loads(self.chore_redis.redis.messages[2]), {
             "timestamp": 7,
             "node": "bump",
             "text": "kid, thank you. You did things",
